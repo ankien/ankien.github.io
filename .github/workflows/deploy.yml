@@ -27,8 +27,6 @@ jobs:
       # BASE_PATH must match the repo name so asset URLs resolve under
       # https://USERNAME.github.io/<repo>/.
       - run: npm run build
-        env:
-          BASE_PATH: /${{ github.event.repository.name }}/
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
