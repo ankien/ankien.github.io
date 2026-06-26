@@ -1,5 +1,34 @@
 import "./portfolio.css";
 
+type Project = {
+  id: number;
+  title: string;
+  description: string;
+};
+
+const projects: Project[] = [
+  {
+    id: 1,
+    title: "File Analysis Framework",
+    description: "Developed a file analysis framework by using analysis techniques, containerization, REST APIs, and PostgreSQL integration.",
+  },
+  {
+    id: 2,
+    title: "ZeroGBA",
+    description: "Built a high-performance Game Boy Advance emulator featuring a custom software renderer, ARM/THUMB instruction optimizations, and hardware emulation.",
+  },
+  {
+    id: 3,
+    title: "This website!",
+    description: "Developed and designed this 3D website to showcase projects, skills, and information in an interactive and appealing manner.",
+  },
+  {
+    id: 4,
+    title: "OpenGL Renderer",
+    description: "Created a 3D graphics renderer featuring shader-based rendering, texture mapping, and phong lighting for realistic scene rendering.",
+  },
+];
+
 /**
  * Stub portfolio content rendered as a real, scrollable HTML page that is
  * mapped onto the monitor screen. Replace the copy/sections with your own
@@ -10,41 +39,35 @@ export function Portfolio() {
     <div className="screen" onWheelCapture={(e) => e.stopPropagation()}>
       <div className="screen__inner">
         <header className="hero">
-          <p className="hero__eyebrow">Portfolio</p>
           <h1 className="hero__title">
             Hi, I&apos;m <span>Andrew</span>.<br />I write code.
           </h1>
           <p className="hero__sub">
-            Frontend developer crafting interactive, performant experiences.
-            This screen is a real scrollable page living inside a 3D scene.
+            Software Engineer experienced in Full-Stack, Reverse Engineering,
+            Code Optimization, and Strategic Communication.
           </p>
           <p className="scroll-cue">Scroll inside the screen &darr;</p>
         </header>
 
         <section className="section">
           <p className="section__label">About</p>
-          <h2>A short introduction</h2>
+          <h2>An introduction</h2>
           <p>
-            Replace this paragraph with your story — what you do, what you care
-            about, and the kind of problems you like to solve. Keep it human and
-            specific.
-          </p>
-          <p>
-            This content area scrolls independently of the 3D scene, on both
-            desktop (mouse wheel) and mobile (touch drag).
+            6+ years of professional experience and a Bachelor's degree in Computer Science from the University of North Florida. <br/> <br/>
+            My background includes offensive security research at Raytheon, full-stack engineering for the live television feed at the US Open 2022 and other tennis events, and co-authoring the IEEE paper <i>Fingerprinting Bots in a Hybrid Honeypot</i>. <br/> <br/>
+            Outside of work, I enjoy gaming, exercising, going outdoors, and building personal software projects.
           </p>
         </section>
 
         <section className="section">
           <p className="section__label">Work</p>
-          <h2>Selected projects</h2>
+          <h2>My projects</h2>
           <div className="cards">
-            {[1, 2, 3, 4].map((n) => (
-              <article className="card" key={n}>
-                <h3>Project {n}</h3>
+            {projects.map((project) => (
+              <article className="card" key={project.id}>
+                <h3>{project.title}</h3>
                 <p>
-                  A one-line description of the project, the stack used, and the
-                  outcome or impact it had.
+                  {project.description}
                 </p>
               </article>
             ))}
@@ -53,7 +76,7 @@ export function Portfolio() {
 
         <section className="section">
           <p className="section__label">Skills</p>
-          <h2>What I work with</h2>
+          <h2>Non-exhaustive list</h2>
           <div className="tags">
             {["C++", "C#", ".NET", "Python", "Java", "JavaScript", "React", "TypeScript", "Three.js", "Node", "HTML", "CSS", "Vite", "WebGL"].map(
               (t) => (
@@ -70,7 +93,7 @@ export function Portfolio() {
           <h2>Let&apos;s talk</h2>
           <p>
             Email me at <a href="mailto:andrewkien01@gmail.com">andrewkien01@gmail.com</a> or
-            find me on <a href="https://github.com/ankien">GitHub</a> and <a href="https://www.linkedin.com/in/andrew-kien/">LinkedIn</a>.
+            find me on <a target="_blank" href="https://github.com/ankien">GitHub</a> and <a target="_blank" href="https://www.linkedin.com/in/andrew-kien/">LinkedIn</a>.
           </p>
         </section>
 

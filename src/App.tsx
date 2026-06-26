@@ -34,8 +34,8 @@ export function App() {
 
       <div className="hint">
         {isTouch
-          ? "Drag the desk objects \u00B7 two-finger drag to look around \u00B7 tap the keys"
-          : "Scroll the monitor \u00B7 drag the desk objects \u00B7 wheel to push/pull \u00B7 tap the keys"}
+          ? "Tap & drag the desk objects \u00B7 two-finger drag to look around"
+          : "Scroll the monitor \u00B7 tap & drag the desk objects \u00B7 wheel to push/pull"}
       </div>
 
       <div
