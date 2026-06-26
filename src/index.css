@@ -1,0 +1,61 @@
+:root {
+  color-scheme: dark;
+  --bg: #0e141b;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  /* Prevent the browser from hijacking touch gestures so we can route them
+     into the 3D scene (scroll the monitor, drag objects). */
+  overscroll-behavior: none;
+  touch-action: none;
+}
+
+canvas {
+  display: block;
+  outline: none;
+  touch-action: none;
+}
+
+.loader {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #9fb4c7;
+  font-size: 14px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.hint {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(12, 18, 25, 0.6);
+  color: #b8c7d6;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  pointer-events: none;
+  user-select: none;
+  /* Sit above drei's full-viewport <Html> container (z-index ~16M). */
+  z-index: 2147483647;
+}
