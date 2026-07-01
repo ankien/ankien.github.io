@@ -23,6 +23,14 @@
   overflow: hidden;
 }
 
+/* Off-screen full-height clone used to rasterize the page to a texture (see
+   MonitorScreenTexture). Overrides the fixed 360px height so the WHOLE page
+   lays out and can be captured in one shot. */
+.screen--capture {
+  height: auto;
+  overflow: visible;
+}
+
 .screen__inner {
   padding: 0 0 64px;
 }

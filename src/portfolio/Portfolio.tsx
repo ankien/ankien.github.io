@@ -127,6 +127,21 @@ export function Portfolio() {
     <div className="screen">
       <div className="screen__viewport" ref={viewportRef}>
         <div className="screen__inner" ref={innerRef}>
+          <PortfolioContent />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The raw portfolio markup, with no scroll container or wrapper. Shared by the
+ * billboard <Html> screen (wrapped in .screen/.screen__viewport above) and the
+ * render-to-texture screen (rasterized to a texture — see MonitorScreenTexture).
+ */
+export function PortfolioContent() {
+  return (
+    <>
           <header className="hero">
             <h1 className="hero__title">
               Hi, I&apos;m <span>Andrew</span>.<br />I write code.
@@ -193,8 +208,6 @@ export function Portfolio() {
             &copy; {new Date().getFullYear()} Andrew Kien &middot; Built with React,
             Three.js &amp; Rapier.
           </footer>
-        </div>
-      </div>
-    </div>
+    </>
   );
 }

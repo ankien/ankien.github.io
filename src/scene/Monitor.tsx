@@ -1,6 +1,6 @@
-import { Html } from "@react-three/drei";
 import { RigidBody } from "@react-three/rapier";
-import { Portfolio } from "../portfolio/Portfolio";
+import { MonitorScreenTexture } from "./MonitorScreenTexture";
+import { MonitorScreenBillboard } from "./MonitorScreenBillboard";
 import { useDraggable } from "../interaction/useDraggable";
 import { palette } from "./palette";
 import { useRef } from "react";
@@ -10,22 +10,20 @@ import type { RapierRigidBody } from "@react-three/rapier";
 // narrower + shorter than a widescreen) reads as a classic desktop monitor.
 const SCREEN_W = 1.28;
 const SCREEN_H = 0.96; // 4:3
-// The HTML page is authored at 480x360 px (also 4:3); we map those pixels onto
-// the screen. drei's <Html transform> internally divides the group scale by
-// 400/(distanceFactor||10) = 40, so we multiply by 40 to get the page to fill
-// the screen at the intended physical size (otherwise it renders as a speck).
-const SCREEN_PX_W = 480;
-const HTML_SCALE = (SCREEN_W / SCREEN_PX_W) * 40;
+
+// Which screen implementation to embed:
+//  - "texture"  : render-to-texture on a real 3D plane. True perspective +
+//                 depth occlusion, and no CSS matrix3d for iOS Safari to break.
+//  - "billboard": the original iOS-safe drei <Html> 2D overlay (preserved in
+//                 MonitorScreenBillboard). Flip here to swap back instantly.
+const SCREEN_MODE: "texture" | "billboard" = "texture";
 
 /**
- * Monitor on a stand. The screen embeds the real portfolio page via drei
- * <Html transform> so it lives in true 3D — it keeps correct perspective as the
- * camera pans and is occluded by props that pass in front of it. The page
- * scrolls via a JS transform (see Portfolio), NOT a native overflow container:
- * a native scroller inside drei's matrix3d/preserve-3d context is mis-rendered
- * by iOS Safari (blank band on top, content spilling past the bottom). The body
- * is a fixed-ish heavy prop you can still tap (for the glassy click) but it
- * stays put so the screen never drifts.
+ * Monitor on a stand. The screen embeds the real portfolio page — either
+ * rasterized onto a 3D plane (SCREEN_MODE "texture") or as a drei <Html>
+ * billboard overlay (SCREEN_MODE "billboard"). The body is a fixed-ish heavy
+ * prop you can still tap (for the glassy click) but it stays put so the screen
+ * never drifts.
  */
 export function Monitor() {
   const bodyRef = useRef<RapierRigidBody>(null);
@@ -52,22 +50,19 @@ export function Monitor() {
         <meshStandardMaterial color={palette.monitorBezel} flatShading />
       </mesh>
 
-      {/* Screen glow plane (sits just in front of the bezel face) */}
+      {/* Screen glow plane (sits just in front of the bezel face). Shows while
+          the texture rasterizes; the screen sits just in front of it. */}
       <mesh position={[0, 0.62, 0.024]}>
         <planeGeometry args={[SCREEN_W, SCREEN_H]} />
         <meshBasicMaterial color={palette.screenGlow} toneMapped={false} />
       </mesh>
 
-      {/* The actual portfolio page (scrolls via a JS transform, not overflow) */}
-      <Html
-        transform
-        position={[0, 0.62, 0.03]}
-        scale={HTML_SCALE}
-        occlude="blending"
-        style={{ pointerEvents: "auto" }}
-      >
-        <Portfolio />
-      </Html>
+      {/* The actual portfolio page. */}
+      {SCREEN_MODE === "texture" ? (
+        <MonitorScreenTexture position={[0, 0.62, 0.03]} />
+      ) : (
+        <MonitorScreenBillboard position={[0, 0.62, 0.03]} />
+      )}
     </RigidBody>
   );
 }
