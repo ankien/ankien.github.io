@@ -1,5 +1,6 @@
 import { Html } from "@react-three/drei";
 import { RigidBody } from "@react-three/rapier";
+import { useThree } from "@react-three/fiber";
 import { Portfolio } from "../portfolio/Portfolio";
 import { useDraggable } from "../interaction/useDraggable";
 import { palette } from "./palette";
@@ -10,22 +11,31 @@ import type { RapierRigidBody } from "@react-three/rapier";
 // narrower + shorter than a widescreen) reads as a classic desktop monitor.
 const SCREEN_W = 1.28;
 const SCREEN_H = 0.96; // 4:3
-// The HTML page is authored at 480x360 px (also 4:3); we map those pixels onto
-// the screen. drei's <Html transform> internally divides the group scale by
-// 400/(distanceFactor||10) = 40, so we multiply by 40 to get the page to fill
-// the screen at the intended physical size (otherwise it renders as a speck).
+// The portfolio page is authored at 480x360 px (also 4:3). We deliberately use
+// drei's NON-transform (billboard) Html mode rather than `transform`: the
+// transform mode places the page with a CSS `matrix3d`/`preserve-3d` element,
+// which iOS Safari mis-hit-tests (the touchable region is displaced/oversized,
+// spilling past the monitor and stealing touches meant for the scene). The
+// billboard mode draws the page as a plain 2D overlay (translate3d + scale),
+// which every browser hit-tests correctly. `distanceFactor` scales the 480px
+// page so it exactly covers the SCREEN_W world units: with drei's billboard
+// scaling the on-screen page width is `SCREEN_PX_W * distanceFactor / (2*tan(fov/2)*dist)`
+// and the monitor's on-screen width is `SCREEN_W * viewportH / (2*tan(fov/2)*dist)`,
+// so equating them gives distanceFactor = SCREEN_W * viewportH / SCREEN_PX_W.
 const SCREEN_PX_W = 480;
-const HTML_SCALE = (SCREEN_W / SCREEN_PX_W) * 40;
 
 /**
  * Monitor on a stand. The screen embeds the real, scrollable portfolio page
- * via drei <Html transform>. The body is a fixed-ish heavy prop you can still
- * tap (for the glassy click) but it stays put so the screen never drifts.
+ * via drei <Html> (billboard mode). The body is a fixed-ish heavy prop you can
+ * still tap (for the glassy click) but it stays put so the screen never drifts.
  */
 export function Monitor() {
   const bodyRef = useRef<RapierRigidBody>(null);
   // Tap-only: play a tap but don't drag (keeps the readable screen anchored).
   const { handlers } = useDraggable({ bodyRef, material: "plastic", tapOnly: true });
+  // Recomputed on viewport resize so the page keeps covering the screen exactly.
+  const viewportHeight = useThree((s) => s.size.height);
+  const distanceFactor = (SCREEN_W * viewportHeight) / SCREEN_PX_W;
 
   return (
     <RigidBody ref={bodyRef} type="fixed" position={[0, 0, -0.62]} colliders="cuboid">
@@ -55,9 +65,9 @@ export function Monitor() {
 
       {/* The actual scrollable portfolio page */}
       <Html
-        transform
         position={[0, 0.62, 0.03]}
-        scale={HTML_SCALE}
+        center
+        distanceFactor={distanceFactor}
         occlude="blending"
         style={{ pointerEvents: "auto" }}
       >
