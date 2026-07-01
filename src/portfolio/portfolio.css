@@ -1,24 +1,36 @@
 .screen {
   width: 480px;
   height: 360px;
-  overflow-y: auto;
-  overflow-x: hidden;
+  position: relative;
+  /* Clip only. The scrolling itself lives on the child below, OUTSIDE this
+     element's CSS 3D transform context — otherwise iOS Safari renders a blank
+     band at the top of a scroll container that sits inside a 3D transform. */
+  overflow: hidden;
   border-radius: 6px;
   background: linear-gradient(180deg, #0e1726 0%, #0b1320 100%);
   color: #e7eef6;
   font-family: "Inter", system-ui, sans-serif;
-  /* Prevent iOS from auto-inflating text inside the 3D-transformed screen,
-     which shifted content down and left a blank band at the top. */
+  /* Prevent iOS from auto-inflating the text inside the transformed screen. */
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+}
+
+.screen__scroll {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* Own compositing layer so the scroll is a plain 2D scroll, not caught up in
+     the parent's 3D rendering. */
+  transform: translateZ(0);
   scrollbar-width: thin;
   scrollbar-color: #2c4663 transparent;
 }
 
-.screen::-webkit-scrollbar {
+.screen__scroll::-webkit-scrollbar {
   width: 8px;
 }
-.screen::-webkit-scrollbar-thumb {
+.screen__scroll::-webkit-scrollbar-thumb {
   background: #2c4663;
   border-radius: 8px;
 }
