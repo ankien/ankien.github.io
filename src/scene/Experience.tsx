@@ -51,11 +51,13 @@ function CameraRig() {
     apply();
   }, [apply, size]);
 
-  // Single-finger pan — touch only. Mouse/trackpad never produce touch pointer
-  // events, so desktop interaction is left exactly as it was. We wait for a
-  // little movement before deciding: if a prop grab started (dragState), the
-  // gesture belongs to the drag; otherwise it pans the camera 1:1 with the
-  // finger ("grab the world").
+  // Single-finger pan, touch only. We use raw Touch events (not Pointer events)
+  // because older iOS Safari fires those far more reliably inside a WebGL
+  // canvas. Mouse never produces TouchEvents, so desktop stays perfectly
+  // static. We wait for a little movement before deciding: if a prop grab
+  // started (dragState) the gesture belongs to that drag; otherwise it pans the
+  // camera 1:1 with the finger ("grab the world") — drag on the wall/desk/empty
+  // space to look around.
   useEffect(() => {
     const el = gl.domElement;
     let id: number | null = null;
@@ -72,56 +74,67 @@ function CameraRig() {
       return (2 * Math.tan((fov * Math.PI) / 360) * dist) / size.height;
     };
 
-    const down = (e: PointerEvent) => {
-      if (e.pointerType !== "touch" || id !== null) return;
-      id = e.pointerId;
-      startX = lastX = e.clientX;
-      startY = lastY = e.clientY;
+    const find = (list: TouchList) => {
+      for (let i = 0; i < list.length; i++) {
+        if (list[i].identifier === id) return list[i];
+      }
+      return null;
+    };
+
+    const start = (e: TouchEvent) => {
+      if (id !== null) return;
+      const t = e.changedTouches[0];
+      if (!t) return;
+      id = t.identifier;
+      startX = lastX = t.clientX;
+      startY = lastY = t.clientY;
       decided = false;
       panning = false;
     };
 
-    const move = (e: PointerEvent) => {
-      if (e.pointerId !== id) return;
+    const move = (e: TouchEvent) => {
+      const t = find(e.changedTouches);
+      if (!t) return;
       if (!decided) {
-        if (Math.hypot(e.clientX - startX, e.clientY - startY) < 8) return;
+        if (Math.hypot(t.clientX - startX, t.clientY - startY) < 8) return;
         decided = true;
         // Only pan if this gesture isn't dragging a prop.
         panning = dragState.grabbing === 0;
       }
       if (!panning) return;
+      e.preventDefault();
       const k = worldPerPx();
       pan.current.x = THREE.MathUtils.clamp(
-        pan.current.x - (e.clientX - lastX) * k,
+        pan.current.x - (t.clientX - lastX) * k,
         -PAN_X,
         PAN_X
       );
       pan.current.y = THREE.MathUtils.clamp(
-        pan.current.y + (e.clientY - lastY) * k,
+        pan.current.y + (t.clientY - lastY) * k,
         -PAN_Y,
         PAN_Y
       );
-      lastX = e.clientX;
-      lastY = e.clientY;
+      lastX = t.clientX;
+      lastY = t.clientY;
       apply();
     };
 
-    const up = (e: PointerEvent) => {
-      if (e.pointerId !== id) return;
+    const end = (e: TouchEvent) => {
+      if (!find(e.changedTouches)) return;
       id = null;
       decided = false;
       panning = false;
     };
 
-    el.addEventListener("pointerdown", down);
-    el.addEventListener("pointermove", move);
-    el.addEventListener("pointerup", up);
-    el.addEventListener("pointercancel", up);
+    el.addEventListener("touchstart", start, { passive: false });
+    el.addEventListener("touchmove", move, { passive: false });
+    el.addEventListener("touchend", end);
+    el.addEventListener("touchcancel", end);
     return () => {
-      el.removeEventListener("pointerdown", down);
-      el.removeEventListener("pointermove", move);
-      el.removeEventListener("pointerup", up);
-      el.removeEventListener("pointercancel", up);
+      el.removeEventListener("touchstart", start);
+      el.removeEventListener("touchmove", move);
+      el.removeEventListener("touchend", end);
+      el.removeEventListener("touchcancel", end);
     };
   }, [gl, camera, size, apply]);
 

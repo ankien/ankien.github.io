@@ -2,10 +2,17 @@
   width: 480px;
   height: 360px;
   position: relative;
-  /* Clip only. The scrolling itself lives on the child below, OUTSIDE this
-     element's CSS 3D transform context — otherwise iOS Safari renders a blank
-     band at the top of a scroll container that sits inside a 3D transform. */
+  /* Clip only. The scrolling itself lives on the child below. Promote THIS
+     (non-scrolling) element to its own flattened 2D layer with translateZ(0):
+     that pulls everything beneath it out of drei's `preserve-3d` context, so
+     the inner scroll behaves like a normal page scroll. Without this, iOS
+     Safari renders the scroll container displaced downward — a blank band at
+     the top and content spilling past the bottom bezel. `contain: paint`
+     guarantees the overflow is clipped on newer Safari too. */
   overflow: hidden;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  contain: paint;
   border-radius: 6px;
   background: linear-gradient(180deg, #0e1726 0%, #0b1320 100%);
   color: #e7eef6;
@@ -20,9 +27,6 @@
   inset: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  /* Own compositing layer so the scroll is a plain 2D scroll, not caught up in
-     the parent's 3D rendering. */
-  transform: translateZ(0);
   scrollbar-width: thin;
   scrollbar-color: #2c4663 transparent;
 }

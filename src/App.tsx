@@ -10,7 +10,8 @@ export function App() {
   const setVolume = useSceneStore((s) => s.setVolume);
   const reloadProps = useSceneStore((s) => s.reloadProps);
 
-  // Touch devices get a different hint (no mouse wheel; two-finger to look around).
+  // Touch devices get a different hint (no mouse wheel; drag empty space/walls
+  // to look around instead).
   const [isTouch, setIsTouch] = useState(false);
   useEffect(() => {
     const mq = window.matchMedia("(pointer: coarse)");
