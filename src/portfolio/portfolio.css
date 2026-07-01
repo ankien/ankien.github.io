@@ -2,37 +2,25 @@
   width: 480px;
   height: 360px;
   position: relative;
-  /* Clip only; the scrolling lives on the child below. The monitor embeds this
-     page via drei's billboard <Html> (a plain 2D translate3d + scale overlay),
-     so we must NOT create our own compositing layer here: a `translateZ(0)` /
-     `contain: paint` layer gets rasterized at its natural size and then scaled
-     by the parent, which paints the content at the wrong (tiny) size. Plain
-     `overflow: hidden` is all we need. */
+  /* Clip only; scrolling is a JS-driven translateY on .screen__inner (see
+     Portfolio.tsx). We deliberately avoid a native overflow scroller here:
+     inside drei's <Html transform> (matrix3d / preserve-3d) iOS Safari
+     mis-renders native scroll containers (blank band on top, content spilling
+     past the bottom bezel). A transform we control is placed correctly. */
   overflow: hidden;
   border-radius: 6px;
   background: linear-gradient(180deg, #0e1726 0%, #0b1320 100%);
   color: #e7eef6;
   font-family: "Inter", system-ui, sans-serif;
-  /* Prevent iOS from auto-inflating the text inside the scaled screen. */
+  /* Prevent iOS from auto-inflating the text inside the transformed screen. */
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
 }
 
-.screen__scroll {
+.screen__viewport {
   position: absolute;
   inset: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  scrollbar-width: thin;
-  scrollbar-color: #2c4663 transparent;
-}
-
-.screen__scroll::-webkit-scrollbar {
-  width: 8px;
-}
-.screen__scroll::-webkit-scrollbar-thumb {
-  background: #2c4663;
-  border-radius: 8px;
+  overflow: hidden;
 }
 
 .screen__inner {

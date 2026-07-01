@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import "./portfolio.css";
 
 type Project = {
@@ -30,18 +31,102 @@ const projects: Project[] = [
 ];
 
 /**
- * Stub portfolio content rendered as a real, scrollable HTML page that is
- * mapped onto the monitor screen. Replace the copy/sections with your own
- * details later — the layout and scroll behaviour will carry over.
+ * Stub portfolio content rendered as a real HTML page mapped onto the monitor
+ * screen. It scrolls via a transform we drive ourselves (mouse wheel on
+ * desktop, one-finger drag on touch) instead of a native `overflow` scroller:
+ * a native scroll container inside drei's <Html transform> (matrix3d /
+ * preserve-3d) is mis-rendered by iOS Safari — the content is displaced
+ * downward, leaving a blank band on top and spilling past the bottom bezel.
+ * Driving a plain translateY keeps the page glued correctly to the screen.
  */
 export function Portfolio() {
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const innerRef = useRef<HTMLDivElement>(null);
+  const offset = useRef(0);
+
+  useEffect(() => {
+    const vp = viewportRef.current;
+    const inner = innerRef.current;
+    if (!vp || !inner) return;
+
+    let maxOffset = 0;
+    const apply = () => {
+      inner.style.transform = `translateY(${-offset.current}px)`;
+    };
+    const setOffset = (value: number) => {
+      offset.current = Math.min(maxOffset, Math.max(0, value));
+      apply();
+    };
+    const recompute = () => {
+      maxOffset = Math.max(0, inner.scrollHeight - vp.clientHeight);
+      setOffset(offset.current);
+    };
+
+    // Mouse wheel (desktop). preventDefault + stopPropagation so the wheel
+    // scrolls the page and never reaches the canvas (which uses wheel to
+    // push/pull grabbed props).
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setOffset(offset.current + e.deltaY);
+    };
+
+    // One-finger drag to scroll (touch). Tracked by identifier so it doesn't
+    // fight multi-touch. We only consume the gesture once it clearly moves
+    // vertically, and stop propagation so it never bubbles out to the camera.
+    let touchId: number | null = null;
+    let startY = 0;
+    let startOffset = 0;
+    const findTouch = (list: TouchList) => {
+      for (let i = 0; i < list.length; i++) {
+        if (list[i].identifier === touchId) return list[i];
+      }
+      return null;
+    };
+    const onTouchStart = (e: TouchEvent) => {
+      if (touchId !== null) return;
+      const t = e.changedTouches[0];
+      if (!t) return;
+      touchId = t.identifier;
+      startY = t.clientY;
+      startOffset = offset.current;
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      const t = findTouch(e.changedTouches);
+      if (!t) return;
+      e.preventDefault();
+      e.stopPropagation();
+      setOffset(startOffset - (t.clientY - startY));
+    };
+    const onTouchEnd = (e: TouchEvent) => {
+      if (findTouch(e.changedTouches)) touchId = null;
+    };
+
+    vp.addEventListener("wheel", onWheel, { passive: false });
+    vp.addEventListener("touchstart", onTouchStart, { passive: false });
+    vp.addEventListener("touchmove", onTouchMove, { passive: false });
+    vp.addEventListener("touchend", onTouchEnd);
+    vp.addEventListener("touchcancel", onTouchEnd);
+
+    recompute();
+    const ro = new ResizeObserver(recompute);
+    ro.observe(inner);
+    ro.observe(vp);
+
+    return () => {
+      vp.removeEventListener("wheel", onWheel);
+      vp.removeEventListener("touchstart", onTouchStart);
+      vp.removeEventListener("touchmove", onTouchMove);
+      vp.removeEventListener("touchend", onTouchEnd);
+      vp.removeEventListener("touchcancel", onTouchEnd);
+      ro.disconnect();
+    };
+  }, []);
+
   return (
     <div className="screen">
-      <div
-        className="screen__scroll"
-        onWheelCapture={(e) => e.stopPropagation()}
-      >
-        <div className="screen__inner">
+      <div className="screen__viewport" ref={viewportRef}>
+        <div className="screen__inner" ref={innerRef}>
           <header className="hero">
             <h1 className="hero__title">
               Hi, I&apos;m <span>Andrew</span>.<br />I write code.
