@@ -1,4 +1,4 @@
-# 3D Portfolio
+# Andrew Kien - 3D Portfolio
 
 A cartoon, flat-shaded first-person desk scene built with **React + Three.js
 (react-three-fiber)** and **Rapier** physics. The monitor shows a real,
