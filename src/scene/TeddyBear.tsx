@@ -5,9 +5,11 @@ import {
   CapsuleCollider,
   useSphericalJoint,
   type RapierRigidBody,
+  type CollisionEnterPayload,
 } from "@react-three/rapier";
 import { palette } from "./palette";
 import { useDraggable } from "../interaction/useDraggable";
+import { playVelocityImpact } from "../interaction/sounds";
 
 /**
  * A spherical (ball) joint between two bodies. Anchors are positioned to
@@ -62,9 +64,9 @@ function Joint({
  *   ragdoll motion instead of self-collision jitter.
  * - The joints are pre-aligned to the rest pose, so nothing is interpenetrating
  *   or stressed at spawn.
- * - None of the parts carry the collision-sound handler (no `bodyProps`), so
- *   the bear is silent when it bumps into itself; tapping/grabbing still gives
- *   the soft plush sound.
+ * - Each part plays a soft plush thud when it strikes the world (floor, wall,
+ *   desk, other props) but stays silent when limbs bump each other, so the
+ *   settling ragdoll doesn't rattle. Tapping/grabbing still gives the plush tap.
  */
 export function TeddyBear({
   position = [-0.85, 0.31, 0.45] as [number, number, number],
@@ -76,9 +78,9 @@ export function TeddyBear({
   const legL = useRef<RapierRigidBody>(null);
   const legR = useRef<RapierRigidBody>(null);
 
-  // Each part is draggable on its own. We spread only the pointer `handlers`
-  // (drag + grab sound) and deliberately omit `bodyProps` so collisions are
-  // silent.
+  // Each part is draggable on its own. We spread the pointer `handlers` (drag +
+  // grab sound); collision sounds are wired per-part below (via hitSound) so we
+  // can filter out limb-vs-limb contacts.
   const torsoDrag = useDraggable({ bodyRef: torso, material: "plush" });
   const headDrag = useDraggable({ bodyRef: head, material: "plush" });
   const armLDrag = useDraggable({ bodyRef: armL, material: "plush" });
@@ -119,10 +121,30 @@ export function TeddyBear({
     angularDamping: 3.5,
   };
 
+  // Play the plush thud only when a part strikes the WORLD (floor, wall, desk,
+  // other props). Limb-vs-limb contacts are skipped by ref so the ragdoll
+  // doesn't rattle as it settles or gets dragged.
+  const ownBodies = [torso, head, armL, armR, legL, legR];
+  const hitSound =
+    (self: React.RefObject<RapierRigidBody>) =>
+    ({ other }: CollisionEnterPayload) => {
+      if (
+        other.rigidBody &&
+        ownBodies.some((b) => b.current === other.rigidBody)
+      )
+        return;
+      playVelocityImpact("plush", self.current?.linvel());
+    };
+
   return (
     <group>
       {/* ---- Torso ---- */}
-      <RigidBody ref={torso} position={pose(0, 0, 0)} {...part}>
+      <RigidBody
+        ref={torso}
+        position={pose(0, 0, 0)}
+        {...part}
+        onCollisionEnter={hitSound(torso)}
+      >
         <BallCollider args={[0.15]} mass={2} />
         {/* belly */}
         <mesh {...torsoDrag.handlers} castShadow scale={[0.15, 0.16, 0.12]}>
@@ -137,7 +159,13 @@ export function TeddyBear({
       </RigidBody>
 
       {/* ---- Head ---- */}
-      <RigidBody ref={head} position={pose(0, 0.32, 0)} {...part} rotation={HEAD_ROT}>
+      <RigidBody
+        ref={head}
+        position={pose(0, 0.32, 0)}
+        {...part}
+        rotation={HEAD_ROT}
+        onCollisionEnter={hitSound(head)}
+      >
         <BallCollider args={[0.11]} mass={0.5} />
         <mesh {...headDrag.handlers} castShadow scale={[0.12, 0.11, 0.11]}>
           <sphereGeometry args={[1, 18, 16]} />
@@ -170,7 +198,12 @@ export function TeddyBear({
       </RigidBody>
 
       {/* ---- Left arm ---- */}
-      <RigidBody ref={armL} position={pose(-0.2, 0.02, 0)} {...part}>
+      <RigidBody
+        ref={armL}
+        position={pose(-0.2, 0.02, 0)}
+        {...part}
+        onCollisionEnter={hitSound(armL)}
+      >
         <CapsuleCollider args={[0.05, 0.05]} mass={0.3} />
         <mesh {...armLDrag.handlers} castShadow scale={[0.05, 0.085, 0.05]}>
           <sphereGeometry args={[1, 12, 10]} />
@@ -183,7 +216,12 @@ export function TeddyBear({
       </RigidBody>
 
       {/* ---- Right arm ---- */}
-      <RigidBody ref={armR} position={pose(0.2, 0.02, 0)} {...part}>
+      <RigidBody
+        ref={armR}
+        position={pose(0.2, 0.02, 0)}
+        {...part}
+        onCollisionEnter={hitSound(armR)}
+      >
         <CapsuleCollider args={[0.05, 0.05]} mass={0.3} />
         <mesh {...armRDrag.handlers} castShadow scale={[0.05, 0.085, 0.05]}>
           <sphereGeometry args={[1, 12, 10]} />
@@ -196,7 +234,12 @@ export function TeddyBear({
       </RigidBody>
 
       {/* ---- Left leg ---- */}
-      <RigidBody ref={legL} position={pose(-0.08, -0.2, 0)} {...part}>
+      <RigidBody
+        ref={legL}
+        position={pose(-0.08, -0.2, 0)}
+        {...part}
+        onCollisionEnter={hitSound(legL)}
+      >
         <CapsuleCollider args={[0.04, 0.06]} mass={0.4} />
         <mesh {...legLDrag.handlers} castShadow scale={[0.06, 0.09, 0.06]}>
           <sphereGeometry args={[1, 12, 10]} />
@@ -209,7 +252,12 @@ export function TeddyBear({
       </RigidBody>
 
       {/* ---- Right leg ---- */}
-      <RigidBody ref={legR} position={pose(0.08, -0.2, 0)} {...part}>
+      <RigidBody
+        ref={legR}
+        position={pose(0.08, -0.2, 0)}
+        {...part}
+        onCollisionEnter={hitSound(legR)}
+      >
         <CapsuleCollider args={[0.04, 0.06]} mass={0.4} />
         <mesh {...legRDrag.handlers} castShadow scale={[0.06, 0.09, 0.06]}>
           <sphereGeometry args={[1, 12, 10]} />
