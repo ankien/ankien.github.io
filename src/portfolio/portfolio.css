@@ -2,22 +2,18 @@
   width: 480px;
   height: 360px;
   position: relative;
-  /* Clip only. The scrolling itself lives on the child below. Promote THIS
-     (non-scrolling) element to its own flattened 2D layer with translateZ(0):
-     that pulls everything beneath it out of drei's `preserve-3d` context, so
-     the inner scroll behaves like a normal page scroll. Without this, iOS
-     Safari renders the scroll container displaced downward — a blank band at
-     the top and content spilling past the bottom bezel. `contain: paint`
-     guarantees the overflow is clipped on newer Safari too. */
+  /* Clip only; the scrolling lives on the child below. The monitor embeds this
+     page via drei's billboard <Html> (a plain 2D translate3d + scale overlay),
+     so we must NOT create our own compositing layer here: a `translateZ(0)` /
+     `contain: paint` layer gets rasterized at its natural size and then scaled
+     by the parent, which paints the content at the wrong (tiny) size. Plain
+     `overflow: hidden` is all we need. */
   overflow: hidden;
-  transform: translateZ(0);
-  -webkit-transform: translateZ(0);
-  contain: paint;
   border-radius: 6px;
   background: linear-gradient(180deg, #0e1726 0%, #0b1320 100%);
   color: #e7eef6;
   font-family: "Inter", system-ui, sans-serif;
-  /* Prevent iOS from auto-inflating the text inside the transformed screen. */
+  /* Prevent iOS from auto-inflating the text inside the scaled screen. */
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
 }

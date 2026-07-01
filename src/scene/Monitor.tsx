@@ -68,7 +68,6 @@ export function Monitor() {
         position={[0, 0.62, 0.03]}
         center
         distanceFactor={distanceFactor}
-        occlude="blending"
         style={{ pointerEvents: "auto" }}
       >
         <Portfolio />
