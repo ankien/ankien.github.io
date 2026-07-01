@@ -31,6 +31,9 @@ function Sun({ position }: { position: [number, number, number] }) {
             key={i}
             position={[Math.cos(a) * 1.0, Math.sin(a) * 1.0, -0.05]}
             rotation={[0, 0, a - Math.PI / 2]}
+            // Flatten the cone in depth so it can't poke forward through the sun
+            // disc / border (which sit at z >= -0.01) and z-fight with them.
+            scale={[1, 1, 0.12]}
           >
             <coneGeometry args={[0.13, 0.55, 4]} />
             <meshBasicMaterial color="#ffd23f" />

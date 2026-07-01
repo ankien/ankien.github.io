@@ -13,7 +13,8 @@ import { playTap, playVelocityImpact, type CollisionPayload } from "../interacti
 export function Desk() {
   const tap = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation();
-    playTap("wood", 0.6);
+    // Silent on touch: a press on the desk pans the camera instead of clicking.
+    if (e.pointerType !== "touch") playTap("wood", 0.6);
   };
 
   // A prop hit the desk: the desk is static, so read the *other* body's speed

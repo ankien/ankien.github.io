@@ -7,7 +7,10 @@
   background: linear-gradient(180deg, #0e1726 0%, #0b1320 100%);
   color: #e7eef6;
   font-family: "Inter", system-ui, sans-serif;
-  -webkit-overflow-scrolling: touch;
+  /* Prevent iOS from auto-inflating text inside the 3D-transformed screen,
+     which shifted content down and left a blank band at the top. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
   scrollbar-width: thin;
   scrollbar-color: #2c4663 transparent;
 }

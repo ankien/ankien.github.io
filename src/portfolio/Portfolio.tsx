@@ -9,13 +9,13 @@ type Project = {
 const projects: Project[] = [
   {
     id: 1,
-    title: "File Analysis Framework",
-    description: "Developed a file analysis framework by using analysis techniques, containerization, REST APIs, and PostgreSQL integration.",
+    title: "Firmware Analysis Framework",
+    description: "Developed a firmware analysis framework using binary analysis techniques, containerization, REST APIs, and PostgreSQL integration.",
   },
   {
     id: 2,
     title: "ZeroGBA",
-    description: "Built a high-performance Game Boy Advance emulator featuring a custom software renderer, ARM/THUMB instruction optimizations, and hardware emulation.",
+    description: "Built a high-performance Game Boy Advance emulator featuring a custom SIMD software renderer, ARM/THUMB interpreter optimizations, and full hardware emulation.",
   },
   {
     id: 3,
@@ -54,7 +54,7 @@ export function Portfolio() {
           <h2>An introduction</h2>
           <p>
             6+ years of professional experience and a Bachelor's degree in Computer Science from the University of North Florida. <br/> <br/>
-            My background includes offensive security research at Raytheon, full-stack engineering for the live television feed at the US Open 2022 and other tennis events, and co-authoring the IEEE paper <i>Fingerprinting Bots in a Hybrid Honeypot</i>. <br/> <br/>
+            My background includes offensive security research at Raytheon, full-stack engineering for the live television feed software at US Open 2022 and other tennis events, and co-authoring the IEEE paper <i>Fingerprinting Bots in a Hybrid Honeypot</i>. <br/> <br/>
             Outside of work, I enjoy gaming, exercising, going outdoors, and building personal software projects.
           </p>
         </section>
@@ -72,13 +72,16 @@ export function Portfolio() {
               </article>
             ))}
           </div>
+          <p>
+            <br></br>View my work on <a target="_blank" href="https://github.com/ankien">GitHub</a>.
+          </p>
         </section>
 
         <section className="section">
           <p className="section__label">Skills</p>
           <h2>Non-exhaustive list</h2>
           <div className="tags">
-            {["C++", "C#", ".NET", "Python", "Java", "JavaScript", "React", "TypeScript", "Three.js", "Node", "HTML", "CSS", "Vite", "WebGL"].map(
+            {["C++", "C#", ".NET", "Python", "Java", "JavaScript", "React", "TypeScript", "Three.js", "Node", "HTML", "CSS", "Vite", "OpenGL"].map(
               (t) => (
                 <span className="tag" key={t}>
                   {t}
@@ -93,7 +96,7 @@ export function Portfolio() {
           <h2>Let&apos;s talk</h2>
           <p>
             Email me at <a href="mailto:andrewkien01@gmail.com">andrewkien01@gmail.com</a> or
-            find me on <a target="_blank" href="https://github.com/ankien">GitHub</a> and <a target="_blank" href="https://www.linkedin.com/in/andrew-kien/">LinkedIn</a>.
+            find me on <a target="_blank" href="https://www.linkedin.com/in/andrew-kien/">LinkedIn</a>.
           </p>
         </section>
 

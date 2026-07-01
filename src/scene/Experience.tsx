@@ -11,6 +11,8 @@ import { Plants } from "./Plants";
 import { TeddyBear } from "./TeddyBear";
 import { Keyboard } from "./Keyboard";
 import { PencilCup } from "./PencilCup";
+import { dragState } from "../interaction/dragState";
+import { useSceneStore } from "../store";
 
 const BASE_POS = new THREE.Vector3(0, 1.15, 2.6);
 const BASE_TARGET = new THREE.Vector3(0, 0.6, -0.6);
@@ -21,9 +23,10 @@ const PAN_Y = 0.45;
 /**
  * Head-on camera framing. On desktop it's perfectly static — the camera never
  * drifts or reacts to the pointer. On touch devices, where a portrait screen
- * only shows a narrow vertical slice of the wide desk, a *two-finger* drag
- * trucks/pedestals the camera so you can move around and see the whole scene.
- * Single-finger gestures are left untouched for tapping and dragging the props.
+ * only shows a narrow vertical slice of the wide desk, a single-finger press on
+ * scenery or empty space (anything that isn't a draggable prop) trucks/pedestals
+ * the camera so you can move around and see the whole scene. Presses that grab a
+ * prop are left to the drag instead.
  */
 function CameraRig() {
   const { camera, gl, size } = useThree();
@@ -48,71 +51,77 @@ function CameraRig() {
     apply();
   }, [apply, size]);
 
-  // Two-finger pan — touch only. Mouse/trackpad never produce TouchEvents, so
-  // this leaves desktop interaction exactly as it was.
+  // Single-finger pan — touch only. Mouse/trackpad never produce touch pointer
+  // events, so desktop interaction is left exactly as it was. We wait for a
+  // little movement before deciding: if a prop grab started (dragState), the
+  // gesture belongs to the drag; otherwise it pans the camera 1:1 with the
+  // finger ("grab the world").
   useEffect(() => {
     const el = gl.domElement;
-    let panning = false;
+    let id: number | null = null;
+    let startX = 0;
+    let startY = 0;
     let lastX = 0;
     let lastY = 0;
+    let decided = false;
+    let panning = false;
 
-    const mid = (t: TouchList) => ({
-      x: (t[0].clientX + t[1].clientX) / 2,
-      y: (t[0].clientY + t[1].clientY) / 2,
-    });
-
-    const start = (e: TouchEvent) => {
-      if (e.touches.length === 2) {
-        panning = true;
-        const m = mid(e.touches);
-        lastX = m.x;
-        lastY = m.y;
-      }
-    };
-
-    const move = (e: TouchEvent) => {
-      if (!panning || e.touches.length < 2) return;
-      e.preventDefault();
-      const m = mid(e.touches);
-      const dx = m.x - lastX;
-      const dy = m.y - lastY;
-      lastX = m.x;
-      lastY = m.y;
-
-      // World units covered by one screen pixel at the look-at plane, so the
-      // scene tracks the fingers 1:1 ("grab the world"): drag right reveals the
-      // left of the desk, drag down reveals what's above.
+    const worldPerPx = () => {
       const fov = (camera as THREE.PerspectiveCamera).fov ?? 42;
       const dist = BASE_POS.distanceTo(BASE_TARGET);
-      const worldPerPx =
-        (2 * Math.tan((fov * Math.PI) / 360) * dist) / size.height;
+      return (2 * Math.tan((fov * Math.PI) / 360) * dist) / size.height;
+    };
 
+    const down = (e: PointerEvent) => {
+      if (e.pointerType !== "touch" || id !== null) return;
+      id = e.pointerId;
+      startX = lastX = e.clientX;
+      startY = lastY = e.clientY;
+      decided = false;
+      panning = false;
+    };
+
+    const move = (e: PointerEvent) => {
+      if (e.pointerId !== id) return;
+      if (!decided) {
+        if (Math.hypot(e.clientX - startX, e.clientY - startY) < 8) return;
+        decided = true;
+        // Only pan if this gesture isn't dragging a prop.
+        panning = dragState.grabbing === 0;
+      }
+      if (!panning) return;
+      const k = worldPerPx();
       pan.current.x = THREE.MathUtils.clamp(
-        pan.current.x - dx * worldPerPx,
+        pan.current.x - (e.clientX - lastX) * k,
         -PAN_X,
         PAN_X
       );
       pan.current.y = THREE.MathUtils.clamp(
-        pan.current.y + dy * worldPerPx,
+        pan.current.y + (e.clientY - lastY) * k,
         -PAN_Y,
         PAN_Y
       );
+      lastX = e.clientX;
+      lastY = e.clientY;
       apply();
     };
 
-    const end = (e: TouchEvent) => {
-      if (e.touches.length < 2) panning = false;
+    const up = (e: PointerEvent) => {
+      if (e.pointerId !== id) return;
+      id = null;
+      decided = false;
+      panning = false;
     };
 
-    el.addEventListener("touchstart", start, { passive: false });
-    el.addEventListener("touchmove", move, { passive: false });
-    el.addEventListener("touchend", end);
-    el.addEventListener("touchcancel", end);
+    el.addEventListener("pointerdown", down);
+    el.addEventListener("pointermove", move);
+    el.addEventListener("pointerup", up);
+    el.addEventListener("pointercancel", up);
     return () => {
-      el.removeEventListener("touchstart", start);
-      el.removeEventListener("touchmove", move);
-      el.removeEventListener("touchend", end);
-      el.removeEventListener("touchcancel", end);
+      el.removeEventListener("pointerdown", down);
+      el.removeEventListener("pointermove", move);
+      el.removeEventListener("pointerup", up);
+      el.removeEventListener("pointercancel", up);
     };
   }, [gl, camera, size, apply]);
 
@@ -120,6 +129,10 @@ function CameraRig() {
 }
 
 export function Experience() {
+  // Bumping this key remounts every movable prop, snapping them back to their
+  // starting positions (the "reset desk" button in the UI).
+  const resetNonce = useSceneStore((s) => s.resetNonce);
+
   return (
     <>
       <color attach="background" args={["#0e141b"]} />
@@ -132,11 +145,13 @@ export function Experience() {
         <Room />
         <Desk />
         <Monitor />
-        <PCTower />
-        <Plants />
-        <TeddyBear position={[-1.05, 0.31, 0.25]} />
-        <Keyboard />
-        <PencilCup />
+        <group key={resetNonce}>
+          <PCTower />
+          <Plants />
+          <TeddyBear position={[-1.05, 0.31, 0.25]} />
+          <Keyboard />
+          <PencilCup />
+        </group>
       </Physics>
     </>
   );

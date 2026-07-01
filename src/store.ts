@@ -9,6 +9,10 @@ interface SceneState {
   /** Master SFX volume, 0..1. */
   volume: number;
   setVolume: (v: number) => void;
+
+  /** Bumped to remount every movable prop back to its starting position. */
+  resetNonce: number;
+  reloadProps: () => void;
 }
 
 const INITIAL_VOLUME = 0.55;
@@ -29,4 +33,7 @@ export const useSceneStore = create<SceneState>((set) => ({
     setVolume(volume);
     set({ volume });
   },
+
+  resetNonce: 0,
+  reloadProps: () => set((s) => ({ resetNonce: s.resetNonce + 1 })),
 }));

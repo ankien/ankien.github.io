@@ -1,8 +1,9 @@
-import { useRef, useEffect } from "react";
+import { useEffect, useRef } from "react";
 import type { ThreeEvent } from "@react-three/fiber";
 import * as THREE from "three";
-import type { RapierRigidBody } from "@react-three/rapier";
+import { useRapier, type RapierRigidBody } from "@react-three/rapier";
 import { playTap, playVelocityImpact, type Material } from "./sounds";
+import { dragState } from "./dragState";
 
 interface DraggableOptions {
   /** Rapier body to move. If omitted the object is "tap only" (sound, no drag). */
@@ -14,41 +15,37 @@ interface DraggableOptions {
 
 const _rayDir = new THREE.Vector3();
 const _rayOrigin = new THREE.Vector3();
-const _point = new THREE.Vector3();
 const _target = new THREE.Vector3();
-const _offset = new THREE.Vector3();
-const _bodyPos = new THREE.Vector3();
+const _local = new THREE.Vector3();
+const _quat = new THREE.Quaternion();
 
 const MIN_DIST = 1.2;
 const MAX_DIST = 6;
 
 /**
  * Returns pointer handlers that make a Rapier-backed mesh draggable and play a
- * material-specific tap on grab. The object follows the cursor along a ray from
- * the camera, and the mouse wheel pushes it nearer / farther in depth. Works
- * with mouse, touch and pen via pointer events + setPointerCapture.
+ * material-specific tap on grab. Rather than being lifted rigidly, the object
+ * is pinned at the exact point you grabbed via a spherical joint to an
+ * invisible kinematic "cursor" body, so it *dangles* and swings from that
+ * contact point under gravity as you move it around. The mouse wheel pushes it
+ * nearer / farther in depth. Works with mouse, touch and pen via pointer events.
+ *
+ * Non-draggable scenery (`tapOnly`) plays a tap on desktop but stays silent on
+ * touch, where the same press is used to pan the camera around the desk.
  */
 export function useDraggable({ bodyRef, material, tapOnly }: DraggableOptions) {
+  const { world, rapier } = useRapier();
   const active = useRef(false);
   const distance = useRef(3);
-  const lastPos = useRef(new THREE.Vector3());
-  const velocity = useRef(new THREE.Vector3());
-  const lastTime = useRef(0);
+  const anchor = useRef<RapierRigidBody | null>(null);
+  const joint = useRef<ReturnType<typeof world.createImpulseJoint> | null>(null);
 
-  // Compute the dragged world position from the current ray + distance, write
-  // it to the kinematic body, and track velocity for the throw on release.
-  const updateFromRay = () => {
-    if (!bodyRef?.current) return;
-    _point.copy(_rayDir).multiplyScalar(distance.current).add(_rayOrigin);
-    _target.copy(_point).add(_offset);
-
-    const now = performance.now();
-    const dt = Math.max(0.001, (now - lastTime.current) / 1000);
-    velocity.current.copy(_target).sub(lastPos.current).divideScalar(dt);
-    lastPos.current.copy(_target);
-    lastTime.current = now;
-
-    bodyRef.current.setNextKinematicTranslation(_target);
+  // Move the invisible cursor body along the current ray at the grab depth; the
+  // grabbed object follows via the joint (and lags/swings like a real dangle).
+  const moveAnchorToRay = () => {
+    if (!anchor.current) return;
+    _target.copy(_rayDir).multiplyScalar(distance.current).add(_rayOrigin);
+    anchor.current.setNextKinematicTranslation(_target);
   };
 
   // Wheel handler (window-level so it works even when the pointer is captured
@@ -62,72 +59,119 @@ export function useDraggable({ bodyRef, material, tapOnly }: DraggableOptions) {
         MIN_DIST,
         MAX_DIST
       );
-      updateFromRay();
+      moveAnchorToRay();
     };
     window.addEventListener("wheel", onWheel, { passive: false });
     return () => window.removeEventListener("wheel", onWheel);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Tear down the joint + cursor body if the object unmounts mid-drag (e.g. the
+  // "reset desk" button remounts every prop).
+  useEffect(() => {
+    return () => {
+      if (joint.current) {
+        try {
+          world.removeImpulseJoint(joint.current, true);
+        } catch {
+          /* world already torn down */
+        }
+        joint.current = null;
+      }
+      if (anchor.current) {
+        try {
+          world.removeRigidBody(anchor.current);
+        } catch {
+          /* world already torn down */
+        }
+        anchor.current = null;
+      }
+      if (active.current) {
+        active.current = false;
+        dragState.grabbing = Math.max(0, dragState.grabbing - 1);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [world]);
+
   const onPointerDown = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation();
+    const isTouch = e.pointerType === "touch";
+
+    // Tap-only scenery (or a hook with no body): tick on desktop, but stay
+    // silent on touch so this press pans the viewport instead of "clicking".
+    if (tapOnly || !bodyRef?.current) {
+      if (!isTouch) playTap(material, 0.6);
+      return;
+    }
+
     playTap(material, 0.6);
-
-    if (tapOnly || !bodyRef?.current) return;
-
     active.current = true;
+    dragState.grabbing++;
     (e.target as Element)?.setPointerCapture?.(e.pointerId);
 
     const body = bodyRef.current;
-    // Freeze the body so it tracks the pointer exactly while held.
-    body.setBodyType(2 /* kinematicPosition */, true);
+    body.wakeUp();
 
-    const t = body.translation();
-    _bodyPos.set(t.x, t.y, t.z);
-
+    // The world-space point actually under the cursor becomes the pivot.
+    const p = e.point;
     _rayOrigin.copy(e.ray.origin);
     _rayDir.copy(e.ray.direction).normalize();
-
-    // Distance along the ray to the body's depth, so it doesn't snap on grab.
     distance.current = THREE.MathUtils.clamp(
-      _bodyPos.clone().sub(_rayOrigin).dot(_rayDir),
+      _target.copy(p).sub(_rayOrigin).dot(_rayDir),
       MIN_DIST,
       MAX_DIST
     );
-    _point.copy(_rayDir).multiplyScalar(distance.current).add(_rayOrigin);
-    _offset.copy(_bodyPos).sub(_point);
 
-    lastPos.current.copy(_bodyPos);
-    lastTime.current = performance.now();
+    // Express that pivot in the body's local frame for the joint's anchor.
+    const bt = body.translation();
+    const br = body.rotation();
+    _quat.set(br.x, br.y, br.z, br.w).invert();
+    _local.set(p.x - bt.x, p.y - bt.y, p.z - bt.z).applyQuaternion(_quat);
+
+    // Invisible kinematic "cursor" body, placed at the pivot.
+    if (!anchor.current) {
+      const desc = rapier.RigidBodyDesc.kinematicPositionBased().setTranslation(
+        p.x,
+        p.y,
+        p.z
+      );
+      anchor.current = world.createRigidBody(desc);
+    } else {
+      anchor.current.setTranslation({ x: p.x, y: p.y, z: p.z }, true);
+      anchor.current.setNextKinematicTranslation({ x: p.x, y: p.y, z: p.z });
+    }
+
+    // Ball joint pinning the grabbed point to the cursor: the rest of the body
+    // hangs below and swings under gravity — a dangle rather than a rigid lift.
+    const params = rapier.JointData.spherical(
+      { x: 0, y: 0, z: 0 },
+      { x: _local.x, y: _local.y, z: _local.z }
+    );
+    joint.current = world.createImpulseJoint(params, anchor.current, body, true);
   };
 
   const onPointerMove = (e: ThreeEvent<PointerEvent>) => {
-    if (!active.current || !bodyRef?.current) return;
+    if (!active.current) return;
     e.stopPropagation();
     _rayOrigin.copy(e.ray.origin);
     _rayDir.copy(e.ray.direction).normalize();
-    updateFromRay();
+    moveAnchorToRay();
   };
 
   const endDrag = (e: ThreeEvent<PointerEvent>) => {
-    if (!active.current || !bodyRef?.current) return;
+    if (!active.current) return;
     e.stopPropagation();
     active.current = false;
+    dragState.grabbing = Math.max(0, dragState.grabbing - 1);
     (e.target as Element)?.releasePointerCapture?.(e.pointerId);
 
-    const body = bodyRef.current;
-    // Hand control back to the physics solver and impart a throw velocity.
-    body.setBodyType(0 /* dynamic */, true);
-    const v = velocity.current;
-    body.setLinvel(
-      {
-        x: THREE.MathUtils.clamp(v.x, -6, 6),
-        y: THREE.MathUtils.clamp(v.y, -6, 6),
-        z: THREE.MathUtils.clamp(v.z, -6, 6),
-      },
-      true
-    );
-    body.wakeUp();
+    // Release the pivot; the body keeps its current swing velocity as the throw.
+    if (joint.current) {
+      world.removeImpulseJoint(joint.current, true);
+      joint.current = null;
+    }
+    bodyRef?.current?.wakeUp();
   };
 
   // Pointer capture means we also need to honor `pointercancel`.
