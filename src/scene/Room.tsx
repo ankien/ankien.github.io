@@ -412,9 +412,12 @@ export function Room() {
         <Clouds />
         {/* cheery cartoon sun, high in the visible sky */}
         <Sun position={[-0.7, 2.1, -1.5]} />
-        {/* grass ground (kept well below the room floor to avoid z-fighting) */}
-        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1.5, 2]}>
-          <planeGeometry args={[40, 24]} />
+        {/* grass ground — raised just above the room floor (y = -1.2) and
+            confined to the backyard (its front edge tucks behind the back wall
+            at z = -3) so THIS green grass, not the brown room floor, is the
+            ground you see through the window under the bushes. */}
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1.15, -3.5]}>
+          <planeGeometry args={[40, 17]} />
           <meshStandardMaterial
             color={palette.grass}
             polygonOffset
@@ -422,21 +425,20 @@ export function Room() {
             polygonOffsetUnits={1}
           />
         </mesh>
-        {/* gentle hill */}
-        <mesh position={[6, -0.9, -1]} scale={[6, 2.4, 4]}>
-          <sphereGeometry args={[1, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2]} />
-          <meshStandardMaterial color={palette.grassDark} flatShading />
-        </mesh>
 
         <Tree position={[-3.5, -1.5, -0.5]} scale={1.3} />
         <Tree position={[3.5, -1.5, -1.5]} scale={1.6} />
         <Tree position={[-6, -1.5, -2]} scale={1.1} />
+        {/* a big tree on the right where the hill used to be, rooted on the
+            grass so nothing looks like it's levitating */}
+        <Tree position={[6.5, -1.5, -1]} scale={1.9} />
         {/* Bushes sit well in front (z >= 2.6) of every tree crown so they
             never clip through the low-hanging leaves, and are spaced apart in x
-            so they don't intersect each other. */}
-        <Bush position={[-1.4, -1.3, 2.6]} scale={1.0} />
-        <Bush position={[0.8, -1.35, 3.0]} scale={1.15} />
-        <Bush position={[2.4, -1.3, 2.6]} scale={0.85} />
+            so they don't intersect each other. Their y's track the raised grass
+            (-1.15) so they show the same amount above ground as before. */}
+        <Bush position={[-1.4, -1.25, 2.6]} scale={1.0} />
+        <Bush position={[0.8, -1.3, 3.0]} scale={1.15} />
+        <Bush position={[2.4, -1.25, 2.6]} scale={0.85} />
       </group>
     </group>
   );
