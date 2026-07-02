@@ -103,36 +103,72 @@ function Sun({ position }: { position: [number, number, number] }) {
   );
 }
 
-/** A single low-poly cartoon tree (sphere canopy + cylinder trunk). */
+/** A single low-poly cartoon tree: a tapered trunk under a full, irregular
+ * crown built from several overlapping foliage blobs in a few green shades so
+ * it reads as layered leaves rather than one flat ball. The crown sits high on
+ * the trunk so its lowest blobs stay well clear of the foreground bushes. */
 function Tree({ position, scale = 1 }: { position: [number, number, number]; scale?: number }) {
   return (
     <group position={position} scale={scale}>
-      <mesh position={[0, 0.5, 0]} castShadow>
-        <cylinderGeometry args={[0.12, 0.16, 1, 6]} />
+      {/* trunk */}
+      <mesh position={[0, 0.55, 0]} castShadow>
+        <cylinderGeometry args={[0.11, 0.17, 1.1, 7]} />
         <meshStandardMaterial color={palette.trunk} flatShading />
       </mesh>
-      <mesh position={[0, 1.35, 0]} castShadow>
-        <icosahedronGeometry args={[0.75, 0]} />
+      {/* crown — a cluster of blobs, largest in the middle */}
+      <mesh position={[0, 1.5, 0]} castShadow>
+        <icosahedronGeometry args={[0.8, 0]} />
         <meshStandardMaterial color={palette.foliage} flatShading />
       </mesh>
-      <mesh position={[0.35, 1.05, 0.1]} castShadow>
+      <mesh position={[0.45, 1.25, 0.15]} castShadow>
+        <icosahedronGeometry args={[0.52, 0]} />
+        <meshStandardMaterial color={palette.grassDark} flatShading />
+      </mesh>
+      <mesh position={[-0.45, 1.3, -0.12]} castShadow>
+        <icosahedronGeometry args={[0.48, 0]} />
+        <meshStandardMaterial color={palette.leafDark} flatShading />
+      </mesh>
+      <mesh position={[0.08, 1.9, -0.15]} castShadow>
         <icosahedronGeometry args={[0.5, 0]} />
+        <meshStandardMaterial color={palette.foliage} flatShading />
+      </mesh>
+      <mesh position={[-0.12, 1.02, 0.32]} castShadow>
+        <icosahedronGeometry args={[0.42, 0]} />
         <meshStandardMaterial color={palette.grassDark} flatShading />
       </mesh>
     </group>
   );
 }
 
+/** A leafy shrub: a small cluster of overlapping lobes in mixed greens so it
+ * looks bushy and full instead of a single solid. */
 function Bush({ position, scale = 1 }: { position: [number, number, number]; scale?: number }) {
   return (
-    <mesh position={position} scale={scale} castShadow>
-      <dodecahedronGeometry args={[0.45, 0]} />
-      <meshStandardMaterial color={palette.foliage} flatShading />
-    </mesh>
+    <group position={position} scale={scale}>
+      <mesh castShadow>
+        <dodecahedronGeometry args={[0.42, 0]} />
+        <meshStandardMaterial color={palette.foliage} flatShading />
+      </mesh>
+      <mesh position={[0.34, -0.05, 0.06]} castShadow>
+        <dodecahedronGeometry args={[0.3, 0]} />
+        <meshStandardMaterial color={palette.grassDark} flatShading />
+      </mesh>
+      <mesh position={[-0.32, -0.03, -0.05]} castShadow>
+        <dodecahedronGeometry args={[0.28, 0]} />
+        <meshStandardMaterial color={palette.leafDark} flatShading />
+      </mesh>
+      <mesh position={[0.04, 0.22, -0.02]} castShadow>
+        <dodecahedronGeometry args={[0.26, 0]} />
+        <meshStandardMaterial color={palette.leaf} flatShading />
+      </mesh>
+    </group>
   );
 }
 
-/** A single puffy 2D cloud built from a few overlapping white circles. */
+/** A single puffy 2D cloud built from a few overlapping white circles. Each
+ * puff sits at a slightly different z so the circles are never coplanar (which
+ * caused z-fighting), and depthWrite is off so the transparent stack blends
+ * cleanly regardless of draw order. */
 function Cloud({ scale = 1 }: { scale?: number }) {
   const puffs: [number, number, number][] = [
     [0, 0, 0.6],
@@ -144,9 +180,14 @@ function Cloud({ scale = 1 }: { scale?: number }) {
   return (
     <group scale={scale}>
       {puffs.map((p, i) => (
-        <mesh key={i} position={[p[0], p[1], 0]}>
+        <mesh key={i} position={[p[0], p[1], i * 0.01]}>
           <circleGeometry args={[p[2], 20]} />
-          <meshBasicMaterial color="#ffffff" transparent opacity={0.92} />
+          <meshBasicMaterial
+            color="#ffffff"
+            transparent
+            opacity={0.92}
+            depthWrite={false}
+          />
         </mesh>
       ))}
     </group>
@@ -387,12 +428,15 @@ export function Room() {
           <meshStandardMaterial color={palette.grassDark} flatShading />
         </mesh>
 
-        <Tree position={[-3.5, -1.5, 0]} scale={1.3} />
-        <Tree position={[3.2, -1.5, -1]} scale={1.6} />
+        <Tree position={[-3.5, -1.5, -0.5]} scale={1.3} />
+        <Tree position={[3.5, -1.5, -1.5]} scale={1.6} />
         <Tree position={[-6, -1.5, -2]} scale={1.1} />
-        <Bush position={[1.4, -1.25, 1.5]} scale={1.1} />
-        <Bush position={[-1.6, -1.25, 1.8]} scale={0.9} />
-        <Bush position={[0.2, -1.3, 2.2]} scale={1.3} />
+        {/* Bushes sit well in front (z >= 2.6) of every tree crown so they
+            never clip through the low-hanging leaves, and are spaced apart in x
+            so they don't intersect each other. */}
+        <Bush position={[-1.4, -1.3, 2.6]} scale={1.0} />
+        <Bush position={[0.8, -1.35, 3.0]} scale={1.15} />
+        <Bush position={[2.4, -1.3, 2.6]} scale={0.85} />
       </group>
     </group>
   );
